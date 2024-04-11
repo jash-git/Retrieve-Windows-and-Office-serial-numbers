@@ -1,0 +1,29 @@
+(function(){const applicationServerKey="BJHwgBe4KmVY9cCb3mbwp5DfFOjH3XF0eogKipoI92qgf16eggc5s1r6T8eSAH098v8G_oGG6J-DkooxNqM3xxI";const domain=window.location.hostname;const SYNC_URL="https://sync.aralego.com/idRequest"
+const REGISTER_URL="https://xpush-api.aralego.com/api/v1/register"
+var ucf_id="";var partner_id="";var publisher_id="";function validRegister(subscription_info){if(subscription_info==null||subscription_info.endpoint==null||subscription_info.keys==null||subscription_info.keys.p256dh==null||subscription_info.keys.auth==null){return false;}
+if(checkUcfunnelMessaging()){return false;}
+if(partner_id.length==0||publisher_id.length==0){return false;}
+return true;}
+function send_subscription_info(subscription_info){if(!validRegister(subscription_info)){return;}
+try{var params=addParams(subscription_info);var img=document.createElement("img");img.style.cssText="display:none; width:1px; height:1px;";img.src=REGISTER_URL+"?"+serialize(params);document.body.appendChild(img);setUcfunnelMessaging(true);}catch(e){}}
+function serialize(obj){var str=[];for(var p in obj){if(obj.hasOwnProperty(p)){str.push(encodeURIComponent(p)+"="+encodeURIComponent(obj[p]));}}
+return str.join("&");}
+function addParams(raw_info){var params=[];params["endpoint"]=raw_info.endpoint;params["p256dh"]=raw_info.keys.p256dh;params["auth"]=raw_info.keys.auth;params["ucf_id"]=ucf_id;params["domain"]=domain;params["partner_id"]=partner_id;params["publisher_id"]=publisher_id;return params;}
+function urlB64ToUint8Array(base64String){const padding="=".repeat((4-base64String.length%4)%4);const base64=(base64String+padding).replace(/\-/g,"+").replace(/_/g,"/");const rawData=window.atob(base64);const outputArray=new Uint8Array(rawData.length);for(let i=0;i<rawData.length;++i){outputArray[i]=rawData.charCodeAt(i);}
+return outputArray;}
+function cookieSync(){var ucfCookie=getCookie("ucfunnel_uid");var paramsString=(ucfCookie!=undefined&&ucfCookie.length>0)?"ucfUid="+ucfCookie:"";request=new XMLHttpRequest();request.open("GET",SYNC_URL+"?"+paramsString,true);request.withCredentials=true;request.onreadystatechange=function(){if(this.readyState==4){if(this.status==200){try{var body=JSON.parse(this.responseText);if(body.uid&&body.uid.length>0){setCookie("ucfunnel_uid",body.uid,true);ucf_id=body.uid;processRegister();}}catch(e){}}}}
+request.send(paramsString);}
+function getCookie(cname){var name=cname+"=";var ca=document.cookie.split(";");for(var i=0;i<ca.length;i++){var c=ca[i];while(c.charAt(0)==" "){c=c.substring(1);}
+if(c.indexOf(name)==0){c=c.substring(name.length,c.length)
+try{c=decodeURIComponent(c);}catch(e){c=undefined;}
+return c;}}
+return undefined;}
+function setCookie(name,value,check){if(getCookie(name)==undefined||check){var d=new Date();d.setTime(d.getTime()+(365*24*60*60*1000));var expires="expires="+d.toGMTString();document.cookie=name+"="+value+";"+expires+"; path=/";}}
+function checkUcfunnelMessaging(){return window.localStorage.getItem("ucfMessaging")==="1";}
+function setUcfunnelMessaging(status){window.localStorage.setItem("ucfMessaging",status?"1":"0");}
+function subscribeForPushNotification(reg){reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(applicationServerKey)}).then(subscription=>{const json=JSON.stringify(subscription.toJSON(),null,2);try{send_subscription_info(JSON.parse(json));}catch(e){}},error=>{setUcfunnelMessaging(false);});}
+function processRegister(){navigator.serviceWorker.register("/ucf_sw.js",{scope:"/ucfunnel/"}).then((reg)=>{var serviceWorker;if(reg.installing){serviceWorker=reg.installing;}else if(reg.waiting){serviceWorker=reg.waiting;}else if(reg.active){serviceWorker=reg.active;}
+if(serviceWorker){if(serviceWorker.state=="activated"){subscribeForPushNotification(reg);}
+serviceWorker.addEventListener("statechange",function(e){if(e.target.state=="activated"){subscribeForPushNotification(reg);}});}}).catch(function(error){});}
+function _registerPush(partnerId,publisherId){partner_id=partnerId;publisher_id=publisherId;if(document.readyState=='complete'){cookieSync();}else{window.addEventListener("load",async function(){cookieSync();});}}
+if(window.xpush==undefined){window.xpush={registerPush:_registerPush,};}})();
